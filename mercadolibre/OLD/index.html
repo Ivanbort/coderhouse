@@ -1,0 +1,197 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Informacion del Vendedor</title>
+		<script type="text/javascript">
+
+//import { saveAs } from 'file-saver/FileSaver';
+
+var baseurl = "https://api.mercadolibre.com";
+var publicaciones = [];
+
+
+
+function obtenerPublicaciones() {
+    var idvendedor = document.getElementById("codigovendedor").value;
+    var xmlhttp = new XMLHttpRequest();
+    var limit = 0;
+    var total = 0;
+    xmlhttp.open("GET", baseurl + "/sites/MLA/search?search_type=scan&seller_id=" + idvendedor, true);
+    xmlhttp.onreadystatechange =  function () { //async
+
+        if (xmlhttp.readyState === 4 & xmlhttp.status === 200) {
+            var respuesta = JSON.parse(xmlhttp.responseText);
+            //console.log(respuesta);
+            for (var x = 0; x < respuesta.results.length; x++) {//respuesta.results.length
+                publicaciones = publicaciones.concat({id: respuesta.results[x].id, title: respuesta.results[x].title, category_id: respuesta.results[x].category_id});
+//                console.log(publicaciones);
+            }
+            limit = respuesta.paging.limit;
+            total = respuesta.paging.total;
+
+            var respuesta = obtenerPublicaciones2(idvendedor, limit, total);
+//            console.log(publicaciones);
+
+
+
+        }
+        
+    };
+    xmlhttp.send();
+
+
+}
+
+function obtenerPublicaciones2(idvendedor, limit, total) {
+
+
+    (function () {
+            var xmlhttp2 = [];
+            var i = 0;
+            for (var offset = limit; offset < total; offset += limit) {
+                (function (i) {
+                    xmlhttp2[i] = new XMLHttpRequest();
+                    xmlhttp2[i].onreadystatechange = function () {
+                        if (xmlhttp2[i].readyState === 4 & xmlhttp2[i].status === 200) {
+                            var respuesta2 = JSON.parse(xmlhttp2[i].responseText);
+                            for (var x = 0; x < respuesta2.results.length ; x++) {//respuesta2.results.length
+                                (function (x) {
+                                    publicaciones = publicaciones.concat({id: respuesta2.results[x].id, title: respuesta2.results[x].title, category_id: respuesta2.results[x].category_id});
+//                                    if(offset+x>total)
+                                    
+                                    console.log(publicaciones);
+                                }(x));
+                            }
+
+                        }
+                    };
+                    xmlhttp2[i].open("GET", baseurl + "/sites/MLA/search?search_type=scan&offset=" + offset + "&seller_id=" + idvendedor, true);
+                    xmlhttp2[i].send();
+
+                }(i));
+
+                i++;
+
+            }
+
+        }());
+		
+				obtenerCategoria(publicaciones,total);
+        
+    };
+
+//function obtenerCategoria() {
+ //   var xmlhttp3 = [];
+ //  var j = 0
+ //           xmlhttp3[j] = new XMLHttpRequest();
+//            xmlhttp3[j].open("GET", baseurl + "/categories/" + publicaciones[j].category_id, true);
+//            xmlhttp3[j].onreadystatechange = function () {
+//                if (xmlhttp3[j].readyState === 4 & xmlhttp3[j].status === 200) {
+//                    console.log(JSON.parse(xmlhttp3[j].responseText).name);
+//                    publicaciones[j].name = JSON.parse(xmlhttp3[j].responseText).name;
+//                }
+            
+//            xmlhttp3[j].send();
+        
+//    }
+
+
+//}
+
+function obtenerCategoria(publicaciones,total) {
+    var xmlhttp3 = [];
+    for (var j = 0; j < publicaciones.length; j++) {
+       (function (j) {
+            xmlhttp3[j] = new XMLHttpRequest();
+            xmlhttp3[j].open("GET", baseurl + "/categories/" + publicaciones[j].category_id, true);
+           xmlhttp3[j].onreadystatechange = function () {
+               if (xmlhttp3[j].readyState === 4 & xmlhttp3[j].status === 200) {
+                    console.log(JSON.parse(xmlhttp3[j].responseText).name);
+                    publicaciones[j].name = JSON.parse(xmlhttp3[j].responseText).name;
+                }
+            };
+            xmlhttp3[j].send();
+        })(j);
+    }
+
+descargarArchivo(publicaciones,"publicaciones",total);
+}
+
+//function escribirArchivo(publicaciones){
+
+//var FileSaver = require('file-saver');
+//	var blob = new Blob([publicaciones], {type: "text/plain;charset=utf-8"});
+//	FileSaver.saveAs(blob, "publicaciones.txt");
+//	var file = new File([publicaciones], "publicaciones.txt", {type: "text/plain;charset=utf-8"});
+//	FileSaver.saveAs(file);
+//var blob = new Blob([publicaciones], {type: "text/plain;charset=utf-8"});
+//FileSaver.saveAs(blob, "publicaciones.txt");
+
+//}
+
+function descargarArchivo(publicaciones, nombreArchivo,total) {
+  //creamos un FileReader para leer el Blob
+  var texto = [];
+
+  for(var y=0;y<publicaciones.length;y++){
+  	texto += publicaciones[y].id +"," +publicaciones[y].title+"," +publicaciones[y].category_id+"," +publicaciones[y].name+"\n" ;
+  }
+
+  var blob = new Blob([texto], {type: "text/plain;charset=utf-8"});
+  var reader = new FileReader();
+
+  //Definimos la función que manejará el archivo
+  //una vez haya terminado de leerlo
+  reader.onload = function (event) {
+    //Usaremos un link para iniciar la descarga 
+    var save = document.createElement('a');
+    save.href = event.target.result;
+    save.target = '_blank';
+    //Truco: así le damos el nombre al archivo 
+    save.download = nombreArchivo || 'archivo.dat';
+    var clicEvent = new MouseEvent('click', {
+      'view': window,
+      'bubbles': true,
+      'cancelable': true
+    });
+    //Simulamos un clic del usuario
+    //no es necesario agregar el link al DOM.
+    save.dispatchEvent(clicEvent);
+    //Y liberamos recursos...
+    (window.URL || window.webkitURL).revokeObjectURL(save.href);
+  };
+  //Leemos el blob y esperamos a que dispare el evento "load"
+  reader.readAsDataURL(blob);
+};
+
+            
+            
+
+//var f = (function () {
+//    var xhr = [], i;
+//    for (i = 0; i < 3; i++) { //for loop
+//        (function (i) {
+//            xhr[i] = new XMLHttpRequest();
+//            url = "closure.php?data=" + i;
+//            xhr[i].open("GET", url, true);
+//            xhr[i].onreadystatechange = function () {
+//                if (xhr[i].readyState === 4 && xhr[i].status === 200) {
+//                    console.log('Response from request ' + i + ' [ ' + xhr[i].responseText + ']');
+//                }
+//            };
+//            xhr[i].send();
+//        })(i);
+//    }
+//})();
+
+		</script>
+	</head>
+	<body>
+		<div>
+			<h2>Items publicados por vendedor</h2>
+			<h3>Ingrese ID de vendedor</h3>
+			<input type="text" id = "codigovendedor">
+			<button type="button" onclick="obtenerPublicaciones()">Publicaciones</button>
+		</div>
+	</body>
+</html>
